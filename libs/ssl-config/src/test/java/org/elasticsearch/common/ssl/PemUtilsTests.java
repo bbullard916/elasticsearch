@@ -20,6 +20,7 @@ import java.security.GeneralSecurityException;
 import java.security.Key;
 import java.security.KeyStore;
 import java.security.PrivateKey;
+import java.security.UnrecoverableKeyException;
 import java.security.interfaces.ECPrivateKey;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
@@ -109,6 +110,15 @@ public class PemUtilsTests extends ESTestCase {
         assertThat(privateKey, equalTo(key));
     }
 
+    public void testWrongPasswordForEncryptedPKCS8KeyThrowsUnrecoverableKeyException() {
+        assumeFalse("Can't run in a FIPS JVM, PBE KeySpec is not available", inFipsJvm());
+        final GeneralSecurityException exception = expectThrows(
+            GeneralSecurityException.class,
+            () -> PemUtils.parsePrivateKey(getDataPath("/certs/pem-utils/key_pkcs8_encrypted_pbes2_aes.pem"), "wrong-password"::toCharArray)
+        );
+        assertThat(exception, instanceOf(UnrecoverableKeyException.class));
+    }
+
     public void testReadEncryptedPKCS8PBES2DESKey() throws Exception {
         assumeFalse("Can't run in a FIPS JVM, PBE KeySpec is not available", inFipsJvm());
 
@@ -133,6 +143,14 @@ public class PemUtilsTests extends ESTestCase {
         PrivateKey privateKey = PemUtils.parsePrivateKey(getDataPath("/certs/pem-utils/testnode.pem"), TESTNODE_PASSWORD);
         assertThat(privateKey, notNullValue());
         assertThat(privateKey, equalTo(key));
+    }
+
+    public void testWrongPasswordForEncryptedPKCS1KeyThrowsUnrecoverableKeyException() {
+        final GeneralSecurityException exception = expectThrows(
+            GeneralSecurityException.class,
+            () -> PemUtils.parsePrivateKey(getDataPath("/certs/pem-utils/testnode.pem"), "wrong-password"::toCharArray)
+        );
+        assertThat(exception, instanceOf(UnrecoverableKeyException.class));
     }
 
     public void testReadAESEncryptedPKCS1Key() throws Exception {

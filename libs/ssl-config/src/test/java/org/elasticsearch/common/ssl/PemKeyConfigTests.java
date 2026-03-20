@@ -231,6 +231,7 @@ public class PemKeyConfigTests extends ESTestCase {
         final SslConfigException exception = expectThrows(SslConfigException.class, keyConfig::createKeyManager);
         assertThat(exception.getMessage(), containsString("PEM private key"));
         assertThat(exception.getMessage(), containsString(key.toAbsolutePath().toString()));
+        assertThat(exception.getMessage(), containsString("incorrect password"));
         assertThat(exception.getCause(), instanceOf(GeneralSecurityException.class));
     }
 

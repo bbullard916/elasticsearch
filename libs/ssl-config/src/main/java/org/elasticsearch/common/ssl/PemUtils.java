@@ -24,6 +24,7 @@ import java.security.KeyFactory;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
+import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -44,8 +45,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.EncryptedPrivateKeyInfo;
+import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.IvParameterSpec;
@@ -399,7 +402,12 @@ public final class PemUtils {
         SecretKey secretKey = secretKeyFactory.generateSecret(new PBEKeySpec(keyPassword));
         Cipher cipher = Cipher.getInstance(algorithm);
         cipher.init(Cipher.DECRYPT_MODE, secretKey, encryptedPrivateKeyInfo.getAlgParameters());
-        PKCS8EncodedKeySpec keySpec = encryptedPrivateKeyInfo.getKeySpec(cipher);
+        final PKCS8EncodedKeySpec keySpec;
+        try {
+            keySpec = encryptedPrivateKeyInfo.getKeySpec(cipher);
+        } catch (GeneralSecurityException e) {
+            throw maybeRewriteIncorrectPassword(e);
+        }
         String keyAlgo = getKeyAlgorithmIdentifier(keySpec.getEncoded());
         KeyFactory keyFactory = KeyFactory.getInstance(keyAlgo);
         return keyFactory.generatePrivate(keySpec);
@@ -480,10 +488,37 @@ public final class PemUtils {
                 throw new IOException("cannot read encrypted key without a password");
             }
             Cipher cipher = getCipherFromParameters(encryptionParameters, password);
-            byte[] decryptedKeyBytes = cipher.doFinal(keyBytes);
-            return decryptedKeyBytes;
+            try {
+                return cipher.doFinal(keyBytes);
+            } catch (BadPaddingException | IllegalBlockSizeException e) {
+                throw incorrectPasswordException(e);
+            }
         }
         return keyBytes;
+    }
+
+    private static GeneralSecurityException maybeRewriteIncorrectPassword(GeneralSecurityException exception) {
+        if (hasCause(exception, BadPaddingException.class) || hasCause(exception, IllegalBlockSizeException.class)) {
+            return incorrectPasswordException(exception);
+        }
+        return exception;
+    }
+
+    private static UnrecoverableKeyException incorrectPasswordException(GeneralSecurityException cause) {
+        final UnrecoverableKeyException exception = new UnrecoverableKeyException();
+        exception.initCause(cause);
+        return exception;
+    }
+
+    private static boolean hasCause(Throwable exception, Class<? extends Throwable> type) {
+        Throwable current = exception;
+        while (current != null && current.getCause() != current) {
+            if (type.isInstance(current)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     /**
