@@ -23,6 +23,12 @@ case-triage-pack/
 3. Copy commands from `snippets/` and replace placeholders (`<ES_URL>`, `<INDEX>`, `<POD>`, `<NAMESPACE>`).
 4. Save final output using `templates/triage_output.md`.
 
+## Notable snippets
+- `snippets/aws_s3_cross_region_replication.md`: Manual AWS CLI fallback for
+  on-demand S3 cross-region replication, including the live replication rule,
+  one-time S3 Batch Replication backfill, validation checks, and an optional
+  cross-account destination bucket policy.
+
 ## Placeholder conventions
 - Elasticsearch: `<ES_URL>`, `<INDEX>`, `<DATA_STREAM>`
 - Kubernetes/ECK: `<NAMESPACE>`, `<POD>`
