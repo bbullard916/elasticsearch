@@ -1,0 +1,45 @@
+apiVersion: stackconfigpolicy.k8s.elastic.co/v1alpha1
+kind: StackConfigPolicy
+metadata:
+  name: quickstart-migrate-recovery-throttle
+  namespace: default
+spec:
+  resourceSelector:
+    matchLabels:
+      my.ecklab/label: "Day3"
+  elasticsearch:
+    clusterSettings:
+      indices.recovery.max_bytes_per_sec: "100mb"
+---
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: quickstart-migrate
+  namespace: default
+  labels:
+    my.ecklab/label: "Day3"
+spec:
+  version: 8.18.2
+  nodeSets:
+    - name: default
+      count: 2
+      volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 1Gi
+            storageClassName: standard
+      podTemplate:
+        metadata:
+          labels:
+            my.ecklab/label: "Day3"
+      config:
+        node.store.allow_mmap: false
+  http:
+    service:
+      spec:
+        type: LoadBalancer
